@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SpamSense — AI Message Classifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <!-- Animated background orbs -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <!-- Noise overlay -->
+  <div class="noise"></div>
+
+  <div class="container">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">SpamSense</span>
+      </div>
+      <p class="tagline">AI-Powered Message Intelligence</p>
+    </header>
+
+    <!-- Main Card -->
+    <main class="card">
+
+      <div class="card-header">
+        <h1 class="card-title">Classify Your Message</h1>
+        <p class="card-subtitle">Paste any SMS or email snippet below and our Naive Bayes model will instantly detect if it's spam or not.</p>
+      </div>
+
+      <div class="input-group">
+        <label for="messageInput" class="input-label">
+          <span class="label-dot"></span>
+          Message Content
+        </label>
+        <textarea
+          id="messageInput"
+          class="message-input"
+          rows="5"
+          placeholder="Paste your message here… e.g. 'Congratulations! You've won a FREE prize. Call now!'"
+        ></textarea>
+        <div class="char-count"><span id="charCount">0</span> characters</div>
+      </div>
+
+      <button id="classifyBtn" class="classify-btn" onclick="classifyMessage()">
+        <span class="btn-text">Analyse Message</span>
+        <span class="btn-icon">→</span>
+        <div class="btn-glow"></div>
+      </button>
+
+      <!-- Result Panel -->
+      <div id="resultPanel" class="result-panel hidden">
+        <div class="result-inner">
+          <div class="result-badge" id="resultBadge">
+            <span class="badge-icon" id="badgeIcon"></span>
+            <span class="badge-label" id="badgeLabel"></span>
+          </div>
+          <div class="result-details">
+            <p class="result-message" id="resultMessage"></p>
+            <div class="confidence-bar-wrap">
+              <div class="confidence-label">
+                <span>Confidence</span>
+                <span id="confidenceValue">0%</span>
+              </div>
+              <div class="confidence-track">
+                <div class="confidence-fill" id="confidenceFill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Stats Footer -->
+    <footer class="stats-row">
+      <div class="stat">
+        <span class="stat-value">5,572</span>
+        <span class="stat-label">Training Messages</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-value">99.1%</span>
+        <span class="stat-label">Model Accuracy</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-value">Naive Bayes</span>
+        <span class="stat-label">Algorithm</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // Character counter
+    const input = document.getElementById('messageInput');
+    const charCount = document.getElementById('charCount');
+    input.addEventListener('input', () => {
+      charCount.textContent = input.value.length;
+    });
+
+    // Classify function
+    async function classifyMessage() {
+      const message = input.value.trim();
+      if (!message) {
+        input.classList.add('shake');
+        setTimeout(() => input.classList.remove('shake'), 500);
+        return;
+      }
+
+      const btn = document.getElementById('classifyBtn');
+      btn.classList.add('loading');
+      btn.querySelector('.btn-text').textContent = 'Analysing…';
+
+      try {
+        const res = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        showResult(data.result, data.confidence);
+      } catch (e) {
+        alert('Error connecting to server. Is app.py running?');
+      } finally {
+        btn.classList.remove('loading');
+        btn.querySelector('.btn-text').textContent = 'Analyse Message';
+      }
+    }
+
+    function showResult(result, confidence) {
+      const panel     = document.getElementById('resultPanel');
+      const badge     = document.getElementById('resultBadge');
+      const icon      = document.getElementById('badgeIcon');
+      const label     = document.getElementById('badgeLabel');
+      const msg       = document.getElementById('resultMessage');
+      const confVal   = document.getElementById('confidenceValue');
+      const confFill  = document.getElementById('confidenceFill');
+
+      const isSpam = result === 'spam';
+
+      panel.classList.remove('hidden', 'spam', 'ham');
+      badge.classList.remove('spam', 'ham');
+
+      void panel.offsetWidth; // force reflow for animation
+
+      panel.classList.add(isSpam ? 'spam' : 'ham');
+      badge.classList.add(isSpam ? 'spam' : 'ham');
+
+      icon.textContent  = isSpam ? '🚫' : '✅';
+      label.textContent = isSpam ? 'SPAM' : 'HAM';
+
+      msg.textContent = isSpam
+        ? 'This message shows strong spam signals. It likely contains unsolicited or deceptive content.'
+        : 'This message appears legitimate. No spam patterns were detected.';
+
+      confVal.textContent = confidence + '%';
+      confFill.style.width = '0%';
+      confFill.style.background = isSpam
+        ? 'linear-gradient(90deg, #ff4e4e, #ff0000)'
+        : 'linear-gradient(90deg, #00e676, #00c853)';
+
+      setTimeout(() => {
+        confFill.style.width = confidence + '%';
+      }, 100);
+    }
+
+    // Enter key support
+    document.getElementById('messageInput').addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') classifyMessage();
+    });
+  </script>
+
+</body>
+</html>

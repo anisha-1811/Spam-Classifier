@@ -1,0 +1,13 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated files (auto-created by train.py)
+model/
+data/
+
+# IDE
+.antigravity/
+*.log
