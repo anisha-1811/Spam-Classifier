@@ -2,4 +2,5 @@ flask
 scikit-learn
 pandas
 joblib
-requests 
+requests
+gunicorn
